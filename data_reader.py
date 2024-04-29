@@ -1,3 +1,9 @@
 import pandas as pd
 
-df = pd.read_csv("aita_clean.csv")
+# Read the CSV file into a pandas DataFrame
+df = pd.read_csv('data/data.csv')
+
+# Print the head of the DataFrame
+print(df.head())
+
+print(df["content"])
