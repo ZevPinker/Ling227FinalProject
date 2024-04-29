@@ -3,5 +3,4 @@ outs:
 - md5: 9d24b61a8365a563131a68859168af0b
   path: aita_raw.csv
   cache: true
-  metric: false
   persist: false

@@ -1,7 +1,11 @@
-md5: a9fcd63dcb884d505488febe412235d2
+md5: 154f1dd83087c476dbc47ffc0c39ca1a
 outs:
-- md5: e89dc2d659cdf8f2f6da84f3636a260e
+- md5: 0238281b83bff87886c0f8ec5f13a5d3
   path: aita_clean.csv
-  cache: true
-  metric: false
-  persist: false
+  size: 264820
+  hash: md5
+frozen: true
+deps:
+- checksum: W/"01e2f649f0833815d5bb83b0062b0795"
+  hash: md5
+  path: https://github.com/iterative/aita_dataset
