@@ -6,4 +6,4 @@ df = pd.read_csv('data/data.csv')
 # Print the head of the DataFrame
 print(df.head())
 
-print(df["content"])
+print(df["text"][0])
