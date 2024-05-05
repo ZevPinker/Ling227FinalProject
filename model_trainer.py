@@ -60,64 +60,7 @@ def read_features_csv(csv_filename):
     return feature2id
 
 
-# Creates a dataset from a file listing features.
-# The dataset is a list of (input, output) pairs.
-# The input should be a PyTorch vector whose length is the number of features
-# that we have. This tensor should include a 1 at the vector positions corresponding
-# to the features that appear in this example, with zeroes everywhere else. For example,
-# if this example included features 1 and 7 (but no others), the vector would look like:
-#      torch.tensor([0,1,0,0,0,0,0,1,0,0,0, ... ,0,0])
-# The output should be a PyTorch tensor containing a single integer corresponding
-# to the correct label for this example. Thus, if the example belongs to class 0, the
-# output should be torch.tensor([0]); if it belongs to class 1, the output
-# should be torch.tensor([1]).
 
-
-def do_label2id(label: str):
-    if label == "yta":
-        return torch.tensor([0])
-    elif label == "nta":
-        return torch.tensor([1])
-    elif label == "nah":
-        return torch.tensor([2])
-    elif label == "esh":
-        return torch.tensor([3])
-
-# returns a binary tensor which tells us which features are in the post.
-# This is one-hot encoding
-def do_text2feature(post: str, feature2id):
-    tokens = tokenize_post(post)
-
-    # Initialize a tensor with zeros
-    feature_tensor = torch.zeros(len(feature2id), dtype=torch.float)
-
-    # Loop through tokens and update the corresponding feature tensor values
-    for token in tokens:
-        if token in feature2id:
-            # Setting the value to 1.0 if the feature is present
-            feature_tensor[feature2id[token]] = 1.0
-
-    return feature_tensor
-
-
-# A data set is a list of  (feature_tensor[], label_tensor[])
-# 
-def create_dataset_from_file(filename, feature2id):
-    dataset = []
-
-    with open(filename, 'r') as f:
-        line_no = 0
-        for line in f:
-            line_no += 1
-            print("featurizing " + str(line_no) + "/" + str(int(40606/3)))
-            # Splitting the line into label and text
-            label, text = line.strip().split(' ', 1)
-            # Removing '<' and '>' from label
-            label = label[1:-1]
-            
-            dataset.append((do_text2feature(text, feature2id), (do_label2id(label))))
-
-    return dataset
 
 
 def read_dataset_from_npy(filename):
@@ -368,16 +311,8 @@ if __name__ == "__main__":
     np.random.seed(args.random_seed)
     torch.manual_seed(args.random_seed)
 
-    feature2id = read_features_csv('data/features.csv')
-    feature_count = len(feature2id)
     label_count = 4
 
-    # training_set = create_dataset_from_file(
-    #     args.train, feature2id=feature2id)
-    # validation_set = create_dataset_from_file(
-    #     args.validation, feature2id=feature2id)
-    # test_set = create_dataset_from_file(
-    #     args.test, feature2id=feature2id)
     training_set= read_dataset_from_npy('data/training_set.csv.npy')
     validation_set = read_dataset_from_npy('data/validation_set.csv.npy')
     test_set = read_dataset_from_npy('data/test_set.csv.npy')

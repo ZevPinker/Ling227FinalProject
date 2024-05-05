@@ -158,7 +158,7 @@ def save_dataset_as_npy(dataset, filename):
 
 
 if __name__ == '__main__':
-    #feature_counter('data/train.txt', 'data/validate.txt', 'data/test.txt')
+    feature_counter('data/train.txt', 'data/validate.txt', 'data/test.txt')
 
     feature2id = read_features_csv('data/features.csv')
     feature_count = len(feature2id)

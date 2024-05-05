@@ -15,7 +15,8 @@ def write_to_file(file_path, data):
 
 
 # Splitting the data into train, validate, and test sets
-train_data = df[:int(0.05*len(df))]
+# These values can be changed to include more or less data, my machine only seems to be able to handle 15% of the 270k posts
+train_data = df[:int(0.05*len(df))] 
 validate_data = df[int(0.05*len(df)):int(0.1*len(df))]
 test_data = df[int(0.1*len(df)):int(0.15*len(df))]
 
