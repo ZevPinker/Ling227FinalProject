@@ -1,9 +1,25 @@
 import pandas as pd
+import os
 
 # Read the CSV file into a pandas DataFrame
 df = pd.read_csv('data/data.csv')
 
 # Print the head of the DataFrame
-print(df.head())
 
-print(df["text"][0])
+
+# Function to write data to file
+def write_to_file(file_path, data):
+    with open(file_path, 'w') as f:
+        for index, row in data.iterrows():
+            f.write(f"<{row['verdict']}> {row['text']}\n")
+
+
+# Splitting the data into train, validate, and test sets
+train_data = df[:int(0.05*len(df))]
+validate_data = df[int(0.05*len(df)):int(0.1*len(df))]
+test_data = df[int(0.1*len(df)):int(0.15*len(df))]
+
+# Write data to files
+write_to_file(os.path.join('data', 'train.txt'), train_data)
+write_to_file(os.path.join('data', 'validate.txt'), validate_data)
+write_to_file(os.path.join('data', 'test.txt'), test_data)
