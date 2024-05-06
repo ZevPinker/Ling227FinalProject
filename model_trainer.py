@@ -61,8 +61,6 @@ def read_features_csv(csv_filename):
 
 
 
-
-
 def read_dataset_from_npy(filename):
     dataset = []
 
@@ -226,6 +224,49 @@ def compute_evaluation_loss(model, eval_set, loss_function):
 #####################################################################################
 
 
+def random_search(num_iterations):
+    # Define ranges for hyperparameters
+    lr_range = [0.0001, 0.0012, 0.0011, 0.001, 0.01]
+    dropout_range = [0.0, 0.1, 0.2]
+    hidden_size_range = [50, 100, 150]
+    batch_size_range = [1, 10, 32]
+    eval_every_range = [2000, 5000, 10000]
+
+    best_accuracy = 0
+    best_hyperparameters = {}
+
+    for _ in range(num_iterations):
+        # Randomly sample hyperparameters
+        lr = random.choice(lr_range)
+        dropout = random.choice(dropout_range)
+        hidden_size = random.choice(hidden_size_range)
+        batch_size = random.choice(batch_size_range)
+        eval_every = random.choice(eval_every_range)
+
+        # Train the model with the current hyperparameters
+        model = MLP3(input_feature_count, label_count,
+                     hidden_size=hidden_size, dropout_p=dropout)
+        train(model, training_set, validation_set, test_set, eval_on_test=args.eval_on_test, lr=lr,
+              n_epochs=args.n_epochs, batch_size=batch_size, eval_every=eval_every, model_name="mlp")
+
+        # Evaluate the model
+        _, accuracy = compute_evaluation_loss(
+            model, validation_set, nn.CrossEntropyLoss())
+
+        # Update best hyperparameters if accuracy improves
+        if accuracy > best_accuracy:
+            best_accuracy = accuracy
+            best_hyperparameters = {
+                "lr": lr,
+                "dropout": dropout,
+                "hidden_size": hidden_size,
+                "batch_size": batch_size,
+                "eval_every": eval_every
+            }
+
+    return best_hyperparameters
+
+
 def train(model, training_set, validation_set, test_set, eval_on_test=False, lr=0.001, n_epochs=1, batch_size=1, eval_every=1000, model_name="mlp"):
 
     optimizer = torch.optim.SGD(model.parameters(), lr=lr)
@@ -296,16 +337,38 @@ if __name__ == "__main__":
         "--hidden_size", help="hidden size for the MLP", type=int, default=100)
     parser.add_argument(
         "--n_epochs", help="number of times we loop over the training set", type=int, default=10)
-    parser.add_argument("--batch_size", help="batch size", type=int, default=1)
+    parser.add_argument(
+        "--batch_size", help="batch size", type=int, default=1)
     parser.add_argument(
         "--eval_every", help="this is the number n where we evaluate on the validation set after every n examples", type=int, default=5000)
     parser.add_argument(
         "--glove", help="Use concatenated GloVe embeddings as the input features", action='store_true')
     parser.add_argument(
         "--model", help="type of model (mlp2, mlp3, or logistic)", type=str, default="logistic")
-    parser.add_argument("--random_seed", help="random seed",
+    parser.add_argument(
+        "--random_seed", help="random seed",
                         type=int, default=42)
+    parser.add_argument(
+        "--num_iterations", help="number of random search iterations", type=int, default=10)
+
     args = parser.parse_args()
+    
+
+    # Setting Hyper-Parameters manually here
+    # args.hidden_size = 128
+    # args.dropout = 0.1
+    # args.lr = .003
+    # args.n_epochs = 6
+    # args.batch_size = 10
+    # args.eval_every = 5000
+
+    print("Hyperparameters:")
+    print(f"- Hidden Size: {args.hidden_size}")
+    print(f"- Dropout: {args.dropout}")
+    print(f"- Learning Rate (lr): {args.lr}")
+    print(f"- Number of Epochs: {args.n_epochs}")
+    print(f"- Batch Size: {args.batch_size}")
+    print(f"- Evaluation Frequency: {args.eval_every}")
 
     random.seed(args.random_seed)
     np.random.seed(args.random_seed)
@@ -326,8 +389,11 @@ if __name__ == "__main__":
     elif args.model == "mlp3":
         model = MLP3(input_feature_count, label_count,
                      hidden_size=args.hidden_size, dropout_p=args.dropout)
-    train(model, training_set, validation_set, test_set, eval_on_test=args.eval_on_test, lr=args.lr,
-          n_epochs=args.n_epochs, batch_size=args.batch_size, eval_every=args.eval_every, model_name="mlp")
+    # train(model, training_set, validation_set, test_set, eval_on_test=args.eval_on_test, lr=args.lr,
+    #       n_epochs=args.n_epochs, batch_size=args.batch_size, eval_every=args.eval_every, model_name="mlp")
+    best_hyperparameters = random_search(args.num_iterations)
+    print("Best Hyperparameters:", best_hyperparameters)
+
     logging.info("finish")
 
 

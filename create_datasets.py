@@ -5,7 +5,7 @@ import twokenize
 import logging
 import torch
 # Configure logging
-logging.basicConfig(filename='trainer.log', filemode='w',
+logging.basicConfig(filename='create_datasets.log', filemode='w',
                     format='%(asctime)s - %(levelname)s - %(message)s', level=logging.INFO)
 
 
@@ -62,13 +62,18 @@ def feature_counter(train_filename, validation_filename, test_filename):
                         feature2id[token] = feature_count
                         features_list.append((token, feature_count))
                         feature_count += 1
-
+    feature2id = update_feature2id(feature2id)
+    features_list.append(('extended_feature1', feature_count))
+    features_list.append(('extended_feature2', feature_count + 1))
+    features_list.append(('extended_feature3', feature_count + 2))
+    features_list.append(('extended_feature4', feature_count + 3))
+    features_list.append(('extended_feature5', feature_count + 4))
     # Write features to a CSV file
     with open('data/features.csv', 'w', newline='') as csvfile:
         writer = csv.writer(csvfile)
         writer.writerow(['Feature', 'ID'])
         writer.writerows(features_list)
-
+    logging.info(feature2id)
     return feature2id, feature_count
 
 
@@ -85,6 +90,20 @@ def read_features_csv(csv_filename):
 
     return feature2id
 
+
+def update_feature2id(feature2id):
+    # Define the starting ID for extended features
+    start_id = max(feature2id.values()) + 1 if feature2id else 0
+
+    # Define the list of additional features
+    additional_features = ['extended_feature1', 'extended_feature2',
+                           'extended_feature3', 'extended_feature4', 'extended_feature5']
+
+    # Assign IDs to additional features starting from start_id
+    for idx, feature in enumerate(additional_features):
+        feature2id[feature] = start_id + idx
+
+    return feature2id
 
 # Creates a dataset from a file listing features.
 # The dataset is a list of (input, output) pairs.
@@ -109,9 +128,59 @@ def do_label2id(label: str):
     elif label == "esh":
         return torch.tensor([3])
 
-# returns a binary tensor which tells us which features are in the post.
-# This is one-hot encoding
+#read post and create a binary float tensor of extended features
+# features are age, sex, vulgarity, post-length, 
 
+
+def is_age_sex_format(input_string):
+    # Check if the string length is at least 4 characters
+    if len(input_string) < 4:
+        return False
+
+    # Check if the first character is '(' and the last character is ')'
+    if input_string[0] != '(' or input_string[-1] != ')':
+        return False
+
+    # Remove parentheses
+    content = input_string[1:-1]
+
+    # Check if the string contains only digits and ends with 'm' or 'f'
+    if content[:-1].isdigit() and (content[-1] == 'm' or content[-1] == 'f'):
+        return True
+
+    return False
+
+
+def extract_age_sex(input_string):
+    # Initialize age and sex variables
+    age = None
+    sex = None
+
+    # Check if the input string fits the format
+    if is_age_sex_format(input_string):
+        # Remove parentheses
+        content = input_string[1:-1]
+        # Extract age and sex
+        age = int(content[:-1])
+        sex = content[-1]
+
+    return age, sex
+
+
+def is_vulgar(input_string):
+    vulgar_words = ["fuck", "shit",
+                    "bitch", "dick", "pussy", "ass", "cunt", "whore", "slut",
+                      "bastard", "damn", "hell", "crap", "piss", "shitty", "fucking", "fucked", "bitching", "motherfucker",
+                        "faggot", "dickhead", "tits", "weiner", "cocksucker", "sunofabitch","bloody", "fucker", "jackoff", 
+                        "jerkoff", "cum", "scum", "jizz", "bimbo", "fuckboy", "dyke", "retarded", "bullshit", "dogshit"
+                        ]  # Add more vulgar words as needed
+    # Convert input string to lowercase for case-insensitive matching
+    input_lower = input_string.lower()
+    # Check if any vulgar word is present in the input string
+    for word in vulgar_words:
+        if word in input_lower:
+            return True
+    return False
 
 def do_text2feature(post: str, feature2id):
     tokens = tokenize_post(post)
@@ -119,11 +188,23 @@ def do_text2feature(post: str, feature2id):
     # Initialize a tensor with zeros
     feature_tensor = torch.zeros(len(feature2id), dtype=torch.float)
 
+    logging.info("length of feature tensor " +str(len(feature2id)))
     # Loop through tokens and update the corresponding feature tensor values
     for token in tokens:
+        if is_age_sex_format(token):
+            age, sex = extract_age_sex(token)
+            if age > 21:
+                feature_tensor[feature2id['extended_feature1']] = 1.0
+            if sex == 'f':
+                feature_tensor[feature2id['extended_feature2']] = 1.0
+        if is_vulgar(token):
+            feature_tensor[feature2id['extended_feature3']] = 1.0
         if token in feature2id:
             # Setting the value to 1.0 if the feature is present
             feature_tensor[feature2id[token]] = 1.0
+
+    if len(tokens) > 300:
+        feature_tensor[feature2id['extended_feature4']] = 1.0
 
     return feature_tensor
 
@@ -149,31 +230,48 @@ def create_dataset_from_file(filename, feature2id):
     return dataset
 
 
-def save_dataset_as_npy(dataset, filename):
+def save_dataset_as_npy(dataset, filename, feature_count):
     features = [data[0].numpy() for data in dataset]
     labels = [data[1].numpy() for data in dataset]
+
+    # Log the shapes of the feature and label arrays
+    logging.info(f"Shapes of features array: {np.array(features).shape}")
+    logging.info(f"Shapes of labels array: {np.array(labels).shape}")
+
+    # Log the contents of the first few feature vectors and labels
+    logging.info("Example feature vectors:")
+    for i in range(min(5, len(features))):
+        logging.info(f"Feature vector {i}: {features[i]}")
+    logging.info("Example labels:")
+    for i in range(min(5, len(labels))):
+        logging.info(f"Label {i}: {labels[i]}")
+
     np.save(filename, (features, labels))
 
-
-
-
 if __name__ == '__main__':
-    feature_counter('data/train.txt', 'data/validate.txt', 'data/test.txt')
+    #feature_counter('data/train.txt', 'data/validate.txt', 'data/test.txt')
 
     feature2id = read_features_csv('data/features.csv')
+
+
     feature_count = len(feature2id)
+    print(feature_count)
     label_count = 4
 
     training_set = create_dataset_from_file(
         'data/train.txt', feature2id=feature2id)
+
     validation_set = create_dataset_from_file(
         'data/validate.txt', feature2id=feature2id)
+
     test_set = create_dataset_from_file(
         'data/test.txt', feature2id=feature2id)
 
-    save_dataset_as_npy(training_set, 'data/training_set')
-    save_dataset_as_npy(validation_set, 'data/validation_set')
-    save_dataset_as_npy(test_set, 'data/test_set')
+
+    save_dataset_as_npy(training_set, 'data/training_set', feature_count)
+    save_dataset_as_npy(validation_set, 'data/validation_set', feature_count)
+    save_dataset_as_npy(test_set, 'data/test_set', feature_count)
+
 
 
 
