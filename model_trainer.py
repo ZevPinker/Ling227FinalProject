@@ -4,6 +4,7 @@ import pandas as pd
 import csv
 import torch
 import torch.nn as nn
+from create_datasets import *
 
 import argparse
 
@@ -70,6 +71,42 @@ def read_dataset_from_npy(filename):
 
     return dataset
 
+def do_text2feature(post: str, feature2id):
+    tokens = tokenize_post(post)
+
+    # Initialize a tensor with zeros
+    feature_tensor = torch.zeros(len(feature2id), dtype=torch.float)
+
+    logging.info("length of feature tensor " +str(len(feature2id)))
+    # Loop through tokens and update the corresponding feature tensor values
+    for token in tokens:
+        if is_age_sex_format(token):
+            age, sex = extract_age_sex(token)
+            if age > 21:
+                feature_tensor[feature2id['extended_feature1']] = 1.0
+            if sex == 'f':
+                feature_tensor[feature2id['extended_feature2']] = 1.0
+        if is_vulgar(token):
+            feature_tensor[feature2id['extended_feature3']] = 1.0
+        if token in feature2id:
+            # Setting the value to 1.0 if the feature is present
+            feature_tensor[feature2id[token]] = 1.0
+
+    if len(tokens) > 300:
+        feature_tensor[feature2id['extended_feature4']] = 1.0
+
+    return feature_tensor
+
+def process_classifier_input(filename):
+    tokenized_posts = []
+    with open(filename, 'r') as post_file:
+        for line in post_file:
+            # Preprocess and tokenize each line
+            tokens = tokenize_post(line.strip())
+            tokenized_posts.append(tokens)
+
+    
+    return do_text2feature(tokenize_post)
 
 #####################################################################################
 # DEFINE NEURAL NETWORK ARCHITECTURES
@@ -351,16 +388,14 @@ if __name__ == "__main__":
     parser.add_argument(
         "--num_iterations", help="number of random search iterations", type=int, default=10)
 
+    parser.add_argument(
+        "--classify", help="run classifier on example input", type=bool, default=False
+    )
+    parser.add_argument(
+        "--example", help="file path of text you want to classify", type=str, default="example.txt"
+    )
     args = parser.parse_args()
     
-
-    # Setting Hyper-Parameters manually here
-    # args.hidden_size = 128
-    # args.dropout = 0.1
-    # args.lr = .003
-    # args.n_epochs = 6
-    # args.batch_size = 10
-    # args.eval_every = 5000
 
     print("Hyperparameters:")
     print(f"- Hidden Size: {args.hidden_size}")
@@ -385,16 +420,26 @@ if __name__ == "__main__":
         model = LogisticClassifier(input_feature_count, label_count)
     elif args.model == "mlp2":
         model = MLP2(input_feature_count, label_count,
-                     hidden_size=args.hidden_size, dropout_p=args.dropout)
+                    hidden_size=args.hidden_size, dropout_p=args.dropout)
     elif args.model == "mlp3":
         model = MLP3(input_feature_count, label_count,
-                     hidden_size=args.hidden_size, dropout_p=args.dropout)
-    # train(model, training_set, validation_set, test_set, eval_on_test=args.eval_on_test, lr=args.lr,
-    #       n_epochs=args.n_epochs, batch_size=args.batch_size, eval_every=args.eval_every, model_name="mlp")
-    best_hyperparameters = random_search(args.num_iterations)
-    print("Best Hyperparameters:", best_hyperparameters)
+                    hidden_size=args.hidden_size, dropout_p=args.dropout)
+    train(model, training_set, validation_set, test_set, eval_on_test=args.eval_on_test, lr=args.lr,
+          n_epochs=args.n_epochs, batch_size=args.batch_size, eval_every=args.eval_every, model_name="mlp")    
+    
+    if args.classify:
+        tensor = process_classifier_input(args.example)
+        # Pass input through the model
+        predictions = model(tensor)
 
-    logging.info("finish")
+        # Process the model output
+        predicted_class = torch.argmax(predictions, dim=1)
+        print("The model prediction deems you: ")
+        print(predicted_class)
+        #best_hyperparameters = random_search(args.num_iterations)
+        # print("Best Hyperparameters:", best_hyperparameters)
+
+        logging.info("finish")
 
 
 
